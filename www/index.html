@@ -1,0 +1,298 @@
+<!DOCTYPE html> 
+<html lang="en"> 
+    <head> 
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Checkers</title> 
+        <!--<link rel="stylesheet" href="../../assets/main.css">-->
+        <link rel="stylesheet" href="https://code.jquery.com/ui/1.9.2/themes/base/jquery-ui.css">
+        <script type="text/javascript" src="js/lib/jquery-1.8.2.js"></script>
+  		<script type="text/javascript" src="js/lib/jquery-ui-1.9.0.custom.min.js"></script>
+  		<script type="text/javascript" src="js/game.js"></script>
+  		<script type="text/javascript" src="js/gameView.js"></script>
+        <script type="text/javascript" src="js/config.js"></script>
+        <script type="text/javascript" src="js/squares.js"></script>
+        <script type="text/javascript" src="js/Board.js"></script>
+        <script type="text/javascript" src="js/Piece.js"></script>
+        <script type="text/javascript" src="js/Move.js"></script>
+        <script type="text/javascript" src="js/Square.js"></script>
+        <script type="text/javascript" src="js/State.js"></script>
+        <script type="text/javascript" src="js/AI.js"></script>
+        <script type="text/javascript" src="js/startScreen.js"></script>
+        <script type="text/javascript" src="js/startScreenView.js"></script>
+        <link rel="stylesheet" href="css/checkers.css" type="text/css">
+        <script>
+        
+$(document).ready(function() {
+	gameView.renderBoard();
+	game.init();
+	//gameView.addPieces();
+	//gameView.addOpacity();
+	//startScreenView.buildStartScreen();
+	//startScreenView.showStartScreen();
+	//startScreen.bindClicks(1);
+});
+
+$(document).on("playerMove",function(e,player) {
+	if (Config.devmode) {
+		console.log("**************************************");
+		console.log("*                                    *");
+		console.log("**************************************");
+	}
+	var availableMoves = game.state.availableMoves();
+	if (Config.devmode) {
+		console.log("playerMove: " + player);
+		console.log(availableMoves);
+	}
+	
+	if (player === "pOne") {
+		game.activateMovablePieces(availableMoves);
+	} else {
+		$(document).trigger("computerMove");
+	} 
+});
+
+$(document).on("pieceDropped",function(e,pieceId,newSquare,state) {
+
+	if (!state) {
+		state = game.state;
+	}
+	
+	var player = state.playerTurn;
+	var oldSquare = game.pieces[pieceId].inSquare;
+	if (Config.devmode) {
+		console.log("pieceDropped");
+		console.log("pieceId", pieceId);
+		console.log("newSquare", newSquare);
+		console.log("oldSquare", oldSquare);
+	}
+	var oldSquareId = squares.getSquareId(oldSquare);
+	var newSquareId = squares.getSquareId(newSquare);
+	
+	var newState = new State(state, game.ai.level);
+	newState.board = squares.addPiece(newSquare,pieceId,newState.board);
+	newState.board = squares.removePiece(oldSquare,newState.board);
+	newState.numOfMoves++;
+	
+	//Add Piece to the dom in the new square
+	gameView.addPieceToSquare(pieceId,newSquare);
+	
+	//Check for King-ing
+	if (player === "pOne" && newSquare.row == 0) {
+		console.log("pOne King");
+		game.pieces[pieceId].isKing = true;
+		$('#'+pieceId).addClass("king");
+	} else if (player === "pTwo" && newSquare.row == Config.numRows - 1) {
+		console.log("pTwo King");
+		game.pieces[pieceId].isKing = true;
+		$('#'+pieceId).addClass("king");
+	}
+	
+	//removing the squareId classes from the player's pieces in the DOM
+	game.disablePlayersPieces(game.state.playerTurn);
+	
+	if (Config.devmode) {
+		console.log("checking to see if a piece was jumped...");
+	}
+	if (state.jumpingPiece) {
+		if (Config.devmode) {
+			console.log("...and a piece was jumped")
+		}
+		
+		var oldMoves = state.availableMoves(state.board);
+		for (var i=0;i<oldMoves.length;i++) {
+			if ((oldMoves[i].newSquare.col == newSquare.col && oldMoves[i].newSquare.row == newSquare.row) && oldMoves[i].pieceId === pieceId) {
+				var jumpedSquare = oldMoves[i].jumpedSquare;
+				if (Config.devmode) {
+					console.log("jumpedSquare ", jumpedSquare);
+				}
+				break;
+			}
+		}
+		if (!jumpedSquare) {
+			console.log("ERROR REGARDING JUMPED PIECE!!!!");
+		}
+		var jumpedPiece = newState.board[jumpedSquare.col][jumpedSquare.row];
+		newState.board = squares.removePiece(jumpedSquare,newState.board);
+		gameView.removePiece(jumpedPiece);
+		newState.jumps = false;
+		newState[game.getToggledPlayerTurn(player)+"PiecesNum"]--;
+		if (Config.devmode) {
+			console.log("Checking for more jumps...");
+		}
+		moves = newState.availableMoves();
+		if (moves.length > 0) {
+			if (Config.devmode) {
+				console.log("availableMoves ", moves);
+			}
+			game.activateMovablePieces(moves);
+		}
+		
+	}
+	
+	if (!game.state.jumps) {
+		if (Config.devmode) {
+			console.log("no jumps remaining");
+		}
+		newState.jumpingPiece = "";
+		
+		//update State
+		game.updateState(newState);
+		game.pieces[pieceId].inSquare = newSquare;
+		
+		if (Config.devmode) {
+			console.log("updated state");
+			console.log(game.state.board);
+			console.log(game.pieces);
+		}
+		
+		if (game.state.isTerminal()) {
+			game.state.status = "ended";
+			if (game.state.result === "draw") {
+				$(document).trigger("winningSquaresShown");
+				$("#winnerBox").addClass("draw");
+			} else {
+				game.updateWinnerBox(game.state.result);
+				game.deactivateContBtns();
+				game.activateContBtns();
+				gameView.showWinnerBox();
+				game.disablePlayersPieces(game.state.playerTurn);
+			}
+		} else {
+		
+			game.disablePlayersPieces(game.state.playerTurn);
+			
+			game.state.changeTurn();
+			
+			
+			
+			//allowing dragging of current player's pieces
+			$('.'+game.state.playerTurn).draggable({disabled:false, revert: true, revertDuration: 10, zIndex:100});
+				
+			//disable dragging of opponent's pieces
+			$('.'+game.getToggledPlayerTurn(game.state.playerTurn)).draggable({disabled:true});
+			
+			//disabling dropping on squares
+			//$( ".square" ).droppable({
+			//  disabled: true
+			//});
+			$(document).trigger("playerMove", game.state.playerTurn);
+		}
+	}
+});
+
+$(document).on("computerPieceDropped",function(e,pieceId,newSquare) {
+	console.log("computerPieceDropped");
+	console.log("pieceId: " + pieceId);
+	console.log("newSquare: ", newSquare);
+	
+});
+/*
+$(document).on("pieceSelected",function(e,pieceId){
+	console.log(pieceId);
+	$('#'+pieceId).addClass("selected");
+});
+
+$(document).on("moveComplete",function(e,player) {
+	game.state.jumps = game.findJumps(player,game.state.board);
+});
+
+$(document).on("pieceDropped", function(e, col, state){
+	//$(document).trigger("checkForWin");
+	if (state.isTerminal()) {
+		game.state.status = "ended";
+		if (game.state.result === "draw") {
+			$(document).trigger("winningSquaresShown");
+			$("#winnerBox").addClass("draw");
+		} else {
+			var winningSquares = game.getWinningSquares(game.state);
+			game.showWinningSquares(winningSquares);
+		}
+	} else {
+		if (game.players === "one" && state.playerTurn === "pTwo") {
+			$(document).trigger("computerPlayerMove");
+		} 
+	} 
+
+});
+
+$(document).on("winningSquaresShown", function() {
+	game.updateWinnerBox(game.state.result);
+	game.deactivateContBtns();
+	game.activateContBtns();
+	gameView.showWinnerBox();
+	game.disableAllColumns();
+});
+
+$(document).on("checkForWin", function() {
+	var winner;
+	if (winner = game.checkForWin(game.board)) {
+		console.log("Winner!");
+		game.disableAllColumns();
+		gameView.showWinner(winner);
+		
+	} 
+});
+
+$(document).on("computerPlayerMove", function() {
+	console.log("computermove");
+	if (game.ai.level === 0) {
+		console.log("random move");
+		$(document).trigger("computerMoveRandom");
+	} else {
+		$(document).trigger("computerMove");
+	}
+});
+
+$(document).on("computerMoveRandom", function() {
+	var COLUMNS = game.cols;
+	var col = Math.floor(Math.random()*COLUMNS);
+	
+	while ($.inArray(col, game.state.disabledColumns) > -1 ) {
+		col = Math.floor(Math.random()*COLUMNS);
+	}
+	//$(document).trigger("dropPiece", col);
+	//var chosenAction = availableMoves[0];
+    //var nextState = chosenAction.applyMoveTo(game.state);
+	gameView.renderPiece(chosenAction.movePos, turn, nextState)
+
+    // take the game to the next state
+    game.updateState(nextState);
+});
+*/
+$(document).on("computerMove", function() {
+	AI.chooseMove(game.state.playerTurn,game.state);
+});
+</script>
+
+</head> 
+    <body>
+<div id="header-place"></div>
+    	<script>
+    	/*
+$(function(){
+  $("#header-place").load("/assets/nav.html");
+});
+*/
+</script>
+    	<div id="mainWindow">
+			<p class="description">This is a JavaScript version of the Checkers that utilizes an AI based upon the MiniMax algorithm. As the levels increase, the AI is able to look more and more moves ahead.</p>
+			<div id="game_wrapper">
+				<div id="start_screen" class="popUpBox">
+					<div class="start">
+						<p class="level"></p>
+						<button id="startGame">GO!</button>
+					</div>
+				</div>
+				<div id="winnerBox" class="popUpBox">
+					<div class="winner">
+						<p class="pName"></p>
+						<button></button>
+					</div>
+				</div>
+				<div id="board">
+				</div>
+    		</div>
+    	</div>
+    </body> 
+</html> 

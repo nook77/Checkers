@@ -1,0 +1,211 @@
+#mainWindow {
+    padding-top: 100px;
+}
+
+p.description {
+    width: 50%;
+    margin: 0 auto;
+}
+
+#game_wrapper {
+	height: 550px;
+    position: relative;
+}
+
+.square {
+	position:absolute;
+    border: 1px solid black;
+    width: 73px;
+    height: 73px;
+}
+
+.square.white {
+    background: white;
+    z-index: -1;
+}
+
+.square.black {
+    background: black;
+}
+
+#board {
+    margin: 0px auto 0;
+    position: relative;
+}
+
+.piece {
+    width: 100%;
+    height: 100%;
+    border-radius: 55px;
+    position: relative;
+}
+
+.piece span {
+    position: absolute;
+    top: 36%;
+    left: 11%;
+}
+
+.pOne {
+	background: red;
+}
+
+.pOne.king {
+    background: pink;
+}
+
+.pTwo {
+	background: grey;
+}
+
+.pTwo.king {
+    background: green;
+}
+
+.piece.selected {
+    border: 10px solid yellow;
+    width: 73%;
+    height: 73%;
+}
+
+#menu_wrapper {
+    position: fixed;
+    z-index: 110;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 43%;
+}
+
+#menu {
+	background: grey;
+    border: 2px solid black;
+    box-shadow: 2px 0 12px -3px;
+    padding: 5px;
+    height: 200px;
+    cursor: default;
+}
+
+.menuButton {
+    width: 50px;
+    height: 50px;
+    background: red;
+}
+
+.opaque {
+	opacity: .5;
+}
+
+.winnerBox {
+    position: absolute;
+    border: 2px solid black;
+    left: 50%;
+    top: 50%;
+    z-index: 1;
+    background: white;
+    transform: translate(-50%, -50%);
+    width: 300px;
+    padding: 10px;
+    display: none;
+}
+
+.winnerBox input {
+    position: relative;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    height: 150px;
+    width: 150px;
+}
+
+#start_screen {
+    display: none;
+}
+
+.popUpBox {
+	border: 2px solid black;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    display: none;
+    z-index: 100;
+    background: white;
+    width: 25%;
+    padding: 10px;
+}
+
+.popUpBox .level, .popUpBox .pName {
+	-webkit-text-stroke: 1px black;
+	font-size: 4.5em;
+    color: yellow;
+    text-shadow:
+       1px 1px 1px #000,
+      -1px -1px 1px #000,  
+       1px -1px 1px #000,
+      -1px 1px 1px #000,
+       1px 1px 1px #000;
+    margin-top: 15px;
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+.popUpBox.draw .pName {
+    font-size: 4em;
+}
+
+.popUpBox button {
+    position: relative;
+    left: 50%;
+    font-size: 25px;
+    transform: translate(-50%, -10%);
+}
+
+.square.winner .circle:after {
+    content: '';
+    position: absolute;
+    width: 80%;
+    height: 80%;
+    border-radius: 100%;
+    box-shadow: 0px 75px 0px 98px gold;
+    bottom: 10%;
+    left: 10%;
+}
+
+@media screen and (max-width: 600px) {
+	#board {
+		width: 425px;
+		height: 450px;
+	}
+	
+	p.description {
+	    width: 53%;
+	}
+}
+
+@media screen and (max-width: 450px) {
+	#board {
+		width: 325px;
+		height: 350px;
+	}
+	
+	.square {
+		width: 13.6%;
+	}
+	
+	p.description {
+	    width: 90%;
+	}
+	
+	.popUpBox .level, .popUpBox .pName {
+		font-size: 2.9em;
+	}
+	
+	.popUpBox {
+		width: 61%;
+		top: 36%;
+	}
+}
+
+.ui-state-disabled, .ui-widget-content .ui-state-disabled, .ui-widget-header .ui-state-disabled {
+	opacity: 1;
+}
