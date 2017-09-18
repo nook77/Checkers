@@ -39,14 +39,31 @@ $(document).on("playerMove",function(e,player) {
 		console.log("*                                    *");
 		console.log("**************************************");
 	}
-	var availableMoves = game.state.availableMoves();
+
+	//var availableMoves = game.state.availableMoves();
+	game.state.setAvailableMoves();
 	if (Config.devmode) {
 		console.log("playerMove: " + player);
-		console.log(availableMoves);
+		console.log(game.state.availableMoves);
+	}
+	
+	if (!game.state.availableMoves) {
+		game.state.result = player + " wins";
+		game.state.status = "ended";
+		game.state.winner = player;
+		game.state.status = "ended";
+		game.updateWinnerBox(game.state.result);
+		game.deactivateContBtns();
+		game.activateContBtns();
+		gameView.showWinnerBox();
+		game.disablePieces();
 	}
 	
 	if (player === "pOne") {
-		game.activateMovablePieces(availableMoves);
+		for (var i=0; i<game.state.availableMoves.length; i++) {
+			game.setSquareDroppable(game.state.availableMoves[i].newSquare);
+			game.setPieceDraggable(game.state.availableMoves[i].pieceId,game.state.availableMoves[i].newSquare);
+		}
 	} else {
 		$(document).trigger("computerMove");
 	} 
@@ -59,7 +76,8 @@ $(document).on("pieceDropped",function(e,pieceId,newSquare,state) {
 	}
 	
 	var player = state.playerTurn;
-	var oldSquare = game.pieces[pieceId].inSquare;
+	//var oldSquare = game.pieces[pieceId].inSquare;
+	var oldSquare = game.getSquareFromPieceId(pieceId,state.board);
 	if (Config.devmode) {
 		console.log("pieceDropped");
 		console.log("pieceId", pieceId);
@@ -72,37 +90,41 @@ $(document).on("pieceDropped",function(e,pieceId,newSquare,state) {
 	var newState = new State(state, game.ai.level);
 	newState.board = squares.addPiece(newSquare,pieceId,newState.board);
 	newState.board = squares.removePiece(oldSquare,newState.board);
+	//game.pieces[pieceId].inSquare = newSquare;
 	newState.numOfMoves++;
-	
-	//Add Piece to the dom in the new square
-	gameView.addPieceToSquare(pieceId,newSquare);
 	
 	//Check for King-ing
 	if (player === "pOne" && newSquare.row == 0) {
 		console.log("pOne King");
-		game.pieces[pieceId].isKing = true;
+		state.kings.push(pieceId);
+		//game.pieces[pieceId].isKing = true;
 		$('#'+pieceId).addClass("king");
 	} else if (player === "pTwo" && newSquare.row == Config.numRows - 1) {
 		console.log("pTwo King");
-		game.pieces[pieceId].isKing = true;
+		//game.pieces[pieceId].isKing = true;
+		state.kings.push(pieceId);
 		$('#'+pieceId).addClass("king");
 	}
 	
 	//removing the squareId classes from the player's pieces in the DOM
-	game.disablePlayersPieces(game.state.playerTurn);
+	//if (player === "pOne") {
+		game.disablePieces();
+		//game.disableSquaresDroppable(state.availableMoves);
+	//}
 	
 	if (Config.devmode) {
 		console.log("checking to see if a piece was jumped...");
 	}
-	if (state.jumpingPiece) {
+
+	if (state.jumps) {
 		if (Config.devmode) {
 			console.log("...and a piece was jumped")
 		}
 		
-		var oldMoves = state.availableMoves(state.board);
-		for (var i=0;i<oldMoves.length;i++) {
-			if ((oldMoves[i].newSquare.col == newSquare.col && oldMoves[i].newSquare.row == newSquare.row) && oldMoves[i].pieceId === pieceId) {
-				var jumpedSquare = oldMoves[i].jumpedSquare;
+		//looping through the moves from the current game state to find the square that was jumped
+		for (var i=0;i<state.availableMoves.length;i++) {
+			if ((state.availableMoves[i].newSquare.row == newSquare.row && state.availableMoves[i].newSquare.col == newSquare.col) && state.availableMoves[i].pieceId === pieceId) {
+				var jumpedSquare = state.availableMoves[i].jumpedSquare;
 				if (Config.devmode) {
 					console.log("jumpedSquare ", jumpedSquare);
 				}
@@ -112,41 +134,43 @@ $(document).on("pieceDropped",function(e,pieceId,newSquare,state) {
 		if (!jumpedSquare) {
 			console.log("ERROR REGARDING JUMPED PIECE!!!!");
 		}
-		var jumpedPiece = newState.board[jumpedSquare.col][jumpedSquare.row];
+		var jumpedPiece = newState.board[jumpedSquare.row][jumpedSquare.col];
 		newState.board = squares.removePiece(jumpedSquare,newState.board);
 		gameView.removePiece(jumpedPiece);
-		newState.jumps = false;
+		//delete game.pieces[jumpedPiece];
 		newState[game.getToggledPlayerTurn(player)+"PiecesNum"]--;
 		if (Config.devmode) {
 			console.log("Checking for more jumps...");
 		}
-		moves = newState.availableMoves();
-		if (moves.length > 0) {
+		
+		newState.setAvailableMoves(pieceId,newSquare);
+		if (newState.availableMoves.length > 0) {
 			if (Config.devmode) {
-				console.log("availableMoves ", moves);
+				console.log("availableMoves ", newState.availableMoves);
 			}
-			game.activateMovablePieces(moves);
+			//game.activateMovablePieces(newState.availableMoves);
+			game.updateState(newState);
+			$(document).trigger("playerMove", player);
 		}
 		
 	}
 	
-	if (!game.state.jumps) {
+	if (!newState.jumps) {
 		if (Config.devmode) {
 			console.log("no jumps remaining");
 		}
-		newState.jumpingPiece = "";
 		
 		//update State
 		game.updateState(newState);
-		game.pieces[pieceId].inSquare = newSquare;
+//		game.pieces[pieceId].inSquare = newSquare;
 		
 		if (Config.devmode) {
 			console.log("updated state");
 			console.log(game.state.board);
-			console.log(game.pieces);
+			//console.log(game.pieces);
 		}
 		
-		if (game.state.isTerminal()) {
+		if (game.state.isEndState()) {
 			game.state.status = "ended";
 			if (game.state.result === "draw") {
 				$(document).trigger("winningSquaresShown");
@@ -156,12 +180,14 @@ $(document).on("pieceDropped",function(e,pieceId,newSquare,state) {
 				game.deactivateContBtns();
 				game.activateContBtns();
 				gameView.showWinnerBox();
-				game.disablePlayersPieces(game.state.playerTurn);
+				game.disablePieces();
 			}
 		} else {
 		
-			game.disablePlayersPieces(game.state.playerTurn);
-			
+			game.disablePieces();
+			//if (state.playerTurn === "pOne") {
+				game.disableSquaresDroppable(state.availableMoves);
+			//}
 			game.state.changeTurn();
 			
 			
@@ -173,9 +199,9 @@ $(document).on("pieceDropped",function(e,pieceId,newSquare,state) {
 			$('.'+game.getToggledPlayerTurn(game.state.playerTurn)).draggable({disabled:true});
 			
 			//disabling dropping on squares
-			//$( ".square" ).droppable({
-			//  disabled: true
-			//});
+			$( ".square" ).droppable({
+			  disabled: true
+			});
 			$(document).trigger("playerMove", game.state.playerTurn);
 		}
 	}
@@ -199,7 +225,7 @@ $(document).on("moveComplete",function(e,player) {
 
 $(document).on("pieceDropped", function(e, col, state){
 	//$(document).trigger("checkForWin");
-	if (state.isTerminal()) {
+	if (state.isEndState()) {
 		game.state.status = "ended";
 		if (game.state.result === "draw") {
 			$(document).trigger("winningSquaresShown");
@@ -276,7 +302,7 @@ $(function(){
 */
 </script>
     	<div id="mainWindow">
-			<p class="description">This is a JavaScript version of the Checkers that utilizes an AI based upon the MiniMax algorithm. As the levels increase, the AI is able to look more and more moves ahead.</p>
+			<p class="description">This is a JavaScript version of Checkers that utilizes an AI based upon the MiniMax algorithm. As the levels increase, the AI is able to look more and more moves ahead.</p>
 			<div id="game_wrapper">
 				<div id="start_screen" class="popUpBox">
 					<div class="start">

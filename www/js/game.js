@@ -14,18 +14,18 @@ var game = {
 		_this.rows = Config.numRows;
 		_this.cols = Config.numCols;
 		//_this.squares = new Object();
-		_this.pieces = new Object();
+		//_this.pieces = new Object();
 		_this.players = "one";
 		_this.state = new State(undefined,level);
 		_this.ai = new AI(level);
 		_this.availableMoves = new Array();
-		_this.moveDirections = {pOne: ['ne', 'nw'],
-								pTwo: ['se', 'sw']
+		_this.moveDirections = {pOne: ['nw', 'ne'],
+								pTwo: ['sw', 'se']
 								};
-		_this.kingDirections = ['ne', 'nw', 'se', 'sw'];						
+		_this.kingDirections = ['nw', 'ne', 'se', 'sw'];						
 		
 		gameView.removeOpacity();
-		game.setAllSquaresDroppable(game.state.board);
+		//game.setAllSquaresDroppable(game.state.board);
 		game.addPieces(game.state.board);
 		startScreenView.hideStartScreen();
 		
@@ -44,39 +44,76 @@ var game = {
 
 game.buildBoard = function(board) {
 	if (Config.devmode) {
-		console.log("buildBoard");
+		//console.log("buildBoard");
 	}
+	var player = "pTwo";
 	var newBoard = [];
-	for (var col = 0; col < Config.numCols;col++) {
-		newBoard[col] = new Array();
-    	for (var row = 0; row < Config.numRows;row++){
+	count = 1;
+	for (var row = 0; row < Config.numRows;row++) {
+		newBoard[row] = new Array();
+    	for (var col = 0; col < Config.numCols;col++) {
     		if ((col + row) % 2 !== 0) {
-				newBoard[col][row] = "empty";
+    			if (row > 2 && row < 5)  {
+					newBoard[row][col] = "empty";
+				} else {
+					newBoard[row][col] = player + count;
+					count++;
+				}
+				
+				if (row === 3) {
+					player = "pOne";
+					count = 1;
+				}
 				
 				if (typeof board !== "undefined") {
-					newBoard[col][row] = board[col][row];
+					newBoard[row][col] = board[row][col];
 				}
 			} else {
-				newBoard[col][row] = "null";
+				newBoard[row][col] = "null";
 			}
 		}
     }	
 	return newBoard;
 }
 
+
+game.addPieces = function(board) {
+	if (Config.devmode) {
+		console.log("addPieces");
+	}
+	var count = 1;
+	for (var row = 0; row < Config.numRows;row++) {
+    	for (var col = 0; col < Config.numCols;col++){
+			//if (board[row][col] === "empty") {
+			var pieceId = board[row][col];
+			if (pieceId === "null" || pieceId === "empty") {
+				continue;
+			}
+			var player = pieceId.match(/(pOne|pTwo)/)[1]
+			var count = pieceId.match(/(pOne|pTwo)([0-9]{1,})/)[2];
+			gameView.renderPiece(col, row, player, count);
+			//var piece = new Piece(player + count, {col:col,row:row}, player, game.moveDirections[player]);
+			
+			//game.pieces[player + count] = piece;
+			count++;
+		}
+    }
+}
+
+
 game.setAllSquaresDroppable = function(board) {
-	for (var col = 0; col < Config.numCols;col++) {
-    	for (var row = 0; row < Config.numRows;row++){
-			if (board[col][row] === "empty") {
+	for (var row = 0; row < Config.numRows;row++) {
+    	for (var col = 0; col < Config.numCols;col++){
+			if (board[row][col] === "empty") {
 				//Setting the square as droppable. 
-				$('#s'+col+'_'+row).droppable({
+				$('#s'+row+'_'+col).droppable({
 					//It will only accept pieces that have a class matching the squares ID.
-					accept: '.s'+col+'_'+row,
+					accept: '.s'+row+'_'+col,
 					drop: function(event, ui) {
 						var pieceId = ui.draggable[0].id;
-						var sqId = '#s'+squares.getCol(this.id)+'_'+squares.getRow(this.id);
-						var square = {col:squares.getCol(this.id),
-									  row:squares.getRow(this.id)
+						var sqId = '#s'+squares.getRow(this.id)+'_'+squares.getCol(this.id);
+						var square = {row:squares.getRow(this.id),
+									  col:squares.getCol(this.id)
 									  };  
 						var top = parseInt($(sqId).css("top")) + 6 + "px";
 						var left = parseInt($(sqId).css("left")) + 6 + "px";
@@ -84,8 +121,7 @@ game.setAllSquaresDroppable = function(board) {
 						$(document).trigger("pieceDropped", [pieceId, square, game.state]);
 					},
 					over: function(event, ui) {
-						
-						var sqId = '#s'+squares.getCol(this.id)+'_'+squares.getRow(this.id);
+						var sqId = '#s'+squares.getRow(this.id)+'_'+squares.getCol(this.id);
 						$(sqId).css({"border-color":"white"});
 						var top = parseInt($(sqId).css("top")) - 6 + "px";
 						var left = parseInt($(sqId).css("left")) - 6 + "px";
@@ -98,7 +134,7 @@ game.setAllSquaresDroppable = function(board) {
 						});
 					},
 					out: function(event, ui) {
-						var sqId = '#s'+squares.getCol(this.id)+'_'+squares.getRow(this.id);
+						var sqId = '#s'+squares.getRow(this.id)+'_'+squares.getCol(this.id);
 						var top = parseInt($(sqId).css("top")) + 6 + "px";
 						var left = parseInt($(sqId).css("left")) + 6 + "px";
 						$(sqId).css({"border-color":"black"});
@@ -115,117 +151,89 @@ game.setAllSquaresDroppable = function(board) {
 	}
 }
 
-game.addPieces = function(board) {
-	if (Config.devmode) {
-		console.log("addPieces");
-	}
-	var count = 1;
-	for (var row = Config.numRows - 1; row >= 0;row--) {
-		for (var col = Config.numCols - 1; col >= 0;col--) {
-			if (board[col][row] === "empty") {
-			
-				gameView.renderPiece(col, row, "pOne", count);
-				var piece = new Piece("pOne" + count, {col:col,row:row}, "pOne", game.moveDirections.pOne);
-				
-				game.pieces["pOne" + count] = piece;
-				board[col][row] = piece.id;
-				count++;
-			}
-			if (count > Config.numPlayerPieces) {
-				break;
-			}
-		}
-		if (count > Config.numPlayerPieces) {
-			break;
-		}
-    }
-    
-    //player two pieces
-	count = 1;
+game.disableAllSquaresDroppable = function(board) {
 	for (var row = 0; row < Config.numRows;row++) {
-		for (var col = 0; col < Config.numCols;col++) {
-			if (board[col][row] === "empty") {
-				//game.squares['s'+col+'_'+row].occupiedBy = "pOne";
-				//game.squares['s'+col+'_'+row].pieceId = "pOne" + count;
-				gameView.renderPiece(col, row, "pTwo", count);
-				var piece = new Piece("pTwo" + count, {col:col,row:row}, "pTwo", game.moveDirections.pTwo);
-				game.pieces["pTwo" + count] = piece;
-				board[col][row] = piece.id;
-				count++;
-			}
-			if (count > Config.numPlayerPieces) {
-				break;
+		for (var col = 0; col < Config.numCols;col++){
+			if (board[row][col] !== "null") {
+				$('#s'+row+'_'+col).droppable("disable");
 			}
 		}
-		if (count > Config.numPlayerPieces) {
-			break;
+	}
+}
+
+game.setSquareDroppable = function(square) {
+	var row = square.row;
+	var col = square.col;
+	var sqId = '#s'+row+'_'+col;
+	if ($(sqId).droppable()) {
+	if ($(sqId).droppable("option","disabled")) {
+		$(sqId).droppable('enable');
+	}
+	}
+	$(sqId).droppable({
+		//It will only accept pieces that have a class matching the squares ID.
+		accept: '.s'+row+'_'+col,
+		drop: function(event, ui) {
+			var pieceId = ui.draggable[0].id;
+			var sqId = '#s'+squares.getRow(this.id)+'_'+squares.getCol(this.id);
+			var square = {col:squares.getCol(this.id),
+						  row:squares.getRow(this.id)
+						  };  
+			var top = parseInt($(sqId).css("top")) + 6 + "px";
+			var left = parseInt($(sqId).css("left")) + 6 + "px";
+			$(sqId).css({"border-color":"black","width":"73px","height":"73px","top":top,"left":left});
+			
+			//Add Piece to the dom in the new square
+			gameView.addPieceToSquare(pieceId,square);  
+			setTimeout(function(){ 		
+				$(document).trigger("pieceDropped", [pieceId, square, game.state]);
+			},10); 
+		},
+		over: function(event, ui) {
+			var sqId = '#s'+squares.getRow(this.id)+'_'+squares.getCol(this.id);
+			$(sqId).css({"border-color":"white"});
+			var top = parseInt($(sqId).css("top")) - 6 + "px";
+			var left = parseInt($(sqId).css("left")) - 6 + "px";
+			$(sqId).css({
+				width: "86px",
+				height: "86px",
+				top: top,
+				left: left
+				//transform: "translate(-50px,-50px)"
+			});
+		},
+		out: function(event, ui) {
+			var width = $('#'+event.target.id).css("width");
+			if (width !== "73px") {
+				var sqId = '#s'+squares.getRow(this.id)+'_'+squares.getCol(this.id);
+				var top = parseInt($(sqId).css("top")) + 6 + "px";
+				var left = parseInt($(sqId).css("left")) + 6 + "px";
+				$(sqId).css({"border-color":"black"});
+				$(sqId).css({
+					width: "73px",
+					height: "73px",
+					top: top,
+					left: left
+				});
+			}
 		}
-    }
-	
+	});
 }
 
-game.selectPiece = function(pieceId, player) {
-	if (!$('#' + pieceId).hasClass(game.state.playerTurn)) {
-		return false;
-	}
-	if (game.state.selectedPiece !== "") {
-		gameView.deselectPiece(game.state.selectedPiece);
-		game.state.selectedPiece = "";
-	}
-	game.state.selectedPiece = pieceId;
-	gameView.selectPiece(pieceId);
-	game.deActivateAllSquares();
-	game.activateAvailableSquares(pieceId, player, game.state.board);
-}
-
-game.deselectPiece = function(pieceId) {
-	game.state.selectedPiece = "";
-	gameView.deselectPiece(pieceId);
-}
-
-/*
-game.activateAvailableSquares = function(pieceId, player, board) {
-	var currentSquare = $('#'+pieceId).parent().attr('id');
-	var availableMoves = game.getAvailableMoves(currentSquare, player, board, pieceId);
-	for (var i=0; i<availableMoves.length; i++) {
-		var squareId = 's' + availableMoves[i].newSquare.col + "_" + availableMoves[i].newSquare.row;
-		
-		var pieceId = availableMoves[i].pieceId;
-		var currentSquare = availableMoves[i].currentSquare;
-		var newSquare = availableMoves[i].newSquare;
-		var jumpedSquare = availableMoves[i].jumpedSquare;
-		var player = availableMoves[i].player;
-		
-		var data = {pieceId:pieceId,
-					currentSquare:currentSquare,
-					jumpedSquare:jumpedSquare,
-					player:player
-					};
-		$('#' + squareId).on("click", function(event) {
-			game.movePiece(data, $(this).attr('id'));
-		});
-	}
-	console.log("availableMoves:")
-	console.log(availableMoves);
-	return availableMoves;
-}
-*/
-
-game.activateMovablePieces = function(moves) {
+game.disableSquaresDroppable = function(moves) {
 	for (var i=0; i<moves.length; i++) {
-		var newSqId = squares.getSquareId(moves[i].newSquare);
-		//$('#'+moves[i].pieceId).draggable({
-		//	snap: '#'+newSqId
-    	//});
-    	if (moves[i].jumpedSquare) {
-    		game.pieces[moves[i].pieceId].isJumping = true;
-    		//game.state[moves[i].player+"Pieces"][moves[i].pieceId].isJumping = true;
-    	}
-    	$('#'+moves[i].pieceId).addClass(newSqId);
+		var row = moves[i].newSquare.row;
+		var col = moves[i].newSquare.col;
+		$('#s'+row+'_'+col).droppable("disable");
 	}
 }
 
-game.disablePlayersPieces = function(player) {
+game.setPieceDraggable = function(pieceId,newSquare) {
+	var newSqId = squares.getSquareId(newSquare);
+    $('#'+pieceId).addClass(newSqId);
+}
+
+game.disablePieces = function() {
 	for (piece in game.pieces) {
 		$('#'+piece).removeClass (function (index, css) {
     		return (css.match(/(s[0-9]_[0-9]\s?)/g) || []).join(' ');
@@ -234,16 +242,12 @@ game.disablePlayersPieces = function(player) {
 }
 
 game.activateAvailableSquares = function(moves) {
-	//console.log(moves);
-	
 	for (var i=0; i<moves.length; i++) {
 		var newSqId = squares.getSquareId(moves[i].newSquare);
 		$('#'+moves[i].pieceId).addClass(newSqId);
 	}
 }
-
-//game.addPieceToSquare(pieceId,square
-
+/*
 game.getAvailableMoves = function(player, board, id) {
 	var pieceId;
 	var moves = [];
@@ -266,8 +270,8 @@ game.getAvailableMoves = function(player, board, id) {
 		
 		for (var i=0; i<dirs.length; i++) {
 			if (nextSquare = squares.getNextSquareInDirection(currentSquare, dirs[i])) {
-				if (board[nextSquare.col][nextSquare.row] !== "empty") {
-					var pieceInSquareId = board[nextSquare.col][nextSquare.row];
+				if (board[nextSquare.row][nextSquare.col] !== "empty") {
+					var pieceInSquareId = board[nextSquare.row][nextSquare.col];
 					var pieceInSquare = game.pieces[pieceInSquareId];
 					if (pieceInSquare.player === game.getToggledPlayerTurn(player)) {
 						if (game.isJumpable(nextSquare, dirs[i], player, board)) {
@@ -301,11 +305,11 @@ game.getAvailableMoves = function(player, board, id) {
 			
 			for (var i=0; i<dirs.length; i++) {
 				if (nextSquare = squares.getNextSquareInDirection(currentSquare, dirs[i])) {
-					if (board[nextSquare.col][nextSquare.row] === "empty") {
+					if (board[nextSquare.row][nextSquare.col] === "empty") {
 						var move = new Move(pieceId, currentSquare, nextSquare, '', player);
 						moves.push(move);
 					} else {
-						var pieceInSquareId = board[nextSquare.col][nextSquare.row];
+						var pieceInSquareId = board[nextSquare.row][nextSquare.col];
 						var pieceInSquare = game.pieces[pieceInSquareId];
 						if (pieceInSquare.player === game.getToggledPlayerTurn(player)) {
 							if (game.isJumpable(nextSquare, dirs[i], player, board)) {
@@ -332,47 +336,21 @@ game.getAvailableMoves = function(player, board, id) {
 		return moves;
 	}
 }
-
-/*
-game.getAvailableMoves = function(square, player, board, pieceId) {
-	console.log(square);
-	var moves = [];
-	var jumps = [];
-	var col = squares.getCol(square);
-	var row = squares.getRow(square);
-	var coords = {col: col, row: row};
-	var nextSquare;
-	var dirs = game.moveDirections[player];
-	if (game.state[player+"Pieces"][pieceId].isKing) {
-		for (var a=0;a<game.moveDirections[game.getToggledPlayerTurn(player)].length;a++) {
-			dirs.push(game.moveDirections[game.getToggledPlayerTurn(player)][a]);
-		}
-	}
-	
-	for (var i=0; i<dirs.length; i++) {
-		nextSquare = squares.getNextSquareInDirection(coords, dirs[i]);
-		if (nextSquare && board[nextSquare.col][nextSquare.row] === "empty") {
-			var move = new Move(pieceId, coords, nextSquare, '', player);
-			moves.push(move);
-		} else if (nextSquare && board[nextSquare.col][nextSquare.row] === game.getToggledPlayerTurn(player)) {
-			if (game.isJumpable(nextSquare, dirs[i], player, board)) {
-				var jumpedSquare = nextSquare;
-				nextSquare = squares.getNextSquareInDirection(nextSquare, dirs[i]);
-				
-				var move = new Move(pieceId, coords, nextSquare, jumpedSquare, player);
-				jumps.push(move);
-			}
-		}
-	}
-	
-	if (jumps.length > 0) {
-		return jumps;
-	}
-	
-	return moves;
-}
 */
 
+game.getSquareFromPieceId = function(pieceId,board) {
+	for (var row = 0; row < Config.numRows;row++) {
+    	for (var col = 0; col < Config.numCols;col++) {
+    		if (board[row][col] === pieceId) {
+    			break;
+    		}
+    	}
+    	if (board[row][col] === pieceId) {
+			break;
+		}
+    }
+    return {row:row,col:col};
+}
 game.isJumpable = function(square, dir, currentPlayer, board) {
 
 	var coords = {col: square.col, row: square.row};
@@ -381,7 +359,7 @@ game.isJumpable = function(square, dir, currentPlayer, board) {
 		return false;
 	}
 	
-	if (board[nextSquare.col][nextSquare.row] !== "empty") {
+	if (board[nextSquare.row][nextSquare.col] !== "empty") {
 		return false;
 	}
 	
@@ -392,13 +370,13 @@ game.findJumps = function(player, board) {
 	
 	var dirs = game.moveDirections[player];
 	var jumps = [];
-	for (var col = 0; col < Config.numCols;col++) {
-    	for (var row = 0; row < Config.numRows;row++) {	
-    		if (board[col][row] === player) {
-    			var coords = {col: col, row: row};
+	for (var row = 0; row < Config.numRows;row++) {
+    	for (var col = 0; col < Config.numCols;col++) {	
+    		if (board[row][col] === player) {
+    			var coords = {row: row, col: col};
     			for (var i=0; i<dirs.length; i++) {
     				var nextSquare = squares.getNextSquareInDirection(coords, dirs[i]);
-    				if (nextSquare && board[nextSquare.col][nextSquare.row] === game.getToggledPlayerTurn(player)) {
+    				if (nextSquare && board[nextSquare.row][nextSquare.col] === game.getToggledPlayerTurn(player)) {
     					if (game.isJumpable(nextSquare, dirs[i], player, board)) {
     						jumps.push(coords);
     					}
@@ -410,83 +388,14 @@ game.findJumps = function(player, board) {
     return jumps;
 }
 
-game.movePiece = function(data,squareId) {
-	
-	var pieceId = data.pieceId;
-	var square = data.currentSquare;
-	var jumpedSquare = data.jumpedSquare;
-	var player = data.player;
-	var newSquare = {col:squares.getCol(squareId),
-					 row:squares.getRow(squareId)
-					 };
-					 
-	if (game.state.jumps.length > 0 && !jumpedSquare) {
-		alert("You must make jumps fuckhead!");
-		return false;
-	}
-	
-	console.log("movePiece");
-	console.log("pieceId: " + pieceId  + " moving to: ");
-	console.log(newSquare);
-	console.log("from: ");
-	console.log(square);
-	game.state.board[square.col][square.row] = "empty";
-	game.state.board[newSquare.col][newSquare.row] = player;
-	//game.squares[square.col+'_'+square.row].occupiedBy = "empty";
-	//game.squares[square.col+'_'+square.row].pieceId = "";
-	//game.squares[newSquare.col+'_'+newSquare.row].occupiedBy = player;
-	//game.squares[newSquare.col+'_'+newSquare.row].pieceId = pieceId;
-	gameView.addPieceToSquare(pieceId, newSquare);
-	console.log("new Board:");
-	console.log(game.state.board);
-	//console.log("new Squares:");
-	//console.log(game.squares);
-	
-	if (player === "pOne" && newSquare.row == 0) {
-		console.log("pOne King");
-		game.state.pOnePieces[pieceId].isKing = true;
-		$('#'+pieceId).addClass("king");
-	} else if (player === "pTwo" && newSquare.row == Config.numRows - 1) {
-		console.log("pTwo King");
-		game.state.pTwoPieces[pieceId].isKing = true;
-		$('#'+pieceId).addClass("king");
-	}
-	game.state.selectedPiece = "";
-	gameView.deselectPiece(pieceId);
-	game.deActivateAllSquares();
-	if (jumpedSquare !== '') {
-		console.log("we have jumped: " + jumpedSquare);
-		game.removePieceFromSquare(jumpedSquare);
-		game.state.jumps = [];
-		//game.state.jumps = game.findJumps(player,game.state.board);
-		game.state[game.getToggledPlayerTurn(player)+"PiecesNum"]--;
-		game.activateAvailableSquares(pieceId, player, game.state.board);
-		if (game.checkForWin(player)) {
-			console.log(player + " wins!");
-		}
-	}
-	
-	if (game.state.jumps.length === 0) {
-		console.log("pOne has " + game.state.pOnePiecesNum);
-		console.log("pTwo has " + game.state.pTwoPiecesNum);
-		console.log("turn complete");
-		
-		game.state.playerTurn = game.getToggledPlayerTurn(game.state.playerTurn);
-		$(document).trigger("moveComplete", game.state.playerTurn);
-		console.log("player turn: " + game.state.playerTurn);
-	}
-}
-
 game.removePieceFromSquare = function(square) {
 	if (Config.devmode) {
 		console.log("removePieceFromSquare ", square);
 	}
 	var squareId = squares.getSquareId(square);
-	var pieceId = game.state.board[square.col][square.row];
-	game.state.board[square.col][square.row] = "empty";
+	var pieceId = game.state.board[square.row][square.col];
+	game.state.board[square.row][square.col] = "empty";
 	game.pieces[pieceId] = '';
-	//game.squares[squareId].occupiedBy = "empty";
-	//game.squares[squareId].pieceId = "";
 	gameView.removePiece(pieceId);
 	
 }
@@ -504,12 +413,7 @@ game.getToggledPlayerTurn = function(player) {
 }
 
 game.isValidMove = function(col,row,board) {
-	if (board[col][row] !== "empty") {
-		return false;
-	}
-	
-	var newRow = squares.findEmptyRow(col,board);
-	if (newRow !== row) {
+	if (board[row][col] !== "empty") {
 		return false;
 	}
 	return true;
@@ -519,56 +423,24 @@ game.updateState = function(state) {
 	game.state = state;
 }
 
-game.getScore = function(state) {
-	var score = 0;
-	var numOfConnections = 0;
-	var numOfOpenConnections = 0;
-    if (state.status !== "running") {
-        if (state.result === "pOne wins") {
-            score = 1000 - state.numOfMoves;
-        }
-        else if (state.result === "pTwo wins") {
-            score = -1000 + state.numOfMoves;
-        }
-        else {
-            score = 0;
-        }
-/*    } else {
-    	if (state.playerTurn === "pOne") {
-    		numOfConnections = squares.getNumOfConnections("pOne",state.board); 
-    		numOfOpenConnections = squares.getNumOfOpenConnections("pOne",state.board);
-    		
-    		score = (numOfConnections * 1) + numOfOpenConnections;
-    	} else {
-    		numOfConnections = squares.getNumOfConnections("pTwo",state.board);
-    		numOfOpenConnections = squares.getNumOfOpenConnections("pTwo",state.board);
-    		score = (numOfConnections * 1) + numOfOpenConnections;
-    		if (score) {
-    			score = score * -1;
-    		}
-    	}*/
-    }
-    return score;
-}
-
-game.disableColumn = function(col) {
-	var arrowId = "#arrow_" + col;
-	
-	$(arrowId).off("click");
-	$("div[id^='s"+col+"']").off("click");
-	gameView.hideArrow(arrowId);
-	game.state.disabledCols.push(col);
-}
-
-game.disableAllColumns = function() {
-	$("div[id^='arrow']").off("click");
-	$(".square").off("click");
-	gameView.hideAllArrows();
-}
-
 game.getPlayerFromPieceId = function(id) {
-	var player = id.match(/^(.*?)\-/)[1];
+	if (id === "null" || id === "empty") {
+		return false;
+	}
+	
+	var player = id.match(/^(.*?)[0-9]/)[1];
 	return player;
+}
+
+game.getNumOfKings = function(player,state) {
+	var num=0;
+	for (var king in state.kings) {
+		var piecePlayer = game.getPlayerFromPieceId(king);
+		if (piecePlayer === player) {
+			num++;
+		}
+	}
+	return num;
 }
 
 game.checkForWin = function(player) {
@@ -583,9 +455,9 @@ game.checkForWin = function(player) {
 }
 
 game.checkForDraw = function(board) {
-	for(var col = 0;col<game.cols;col++){
-		for(var row = 0;row<game.rows;row++){
-			if (board[col][row] === "empty") {
+	for(var row = 0;row<game.rows;row++){
+		for(var col = 0;col<game.cols;col++){
+			if (board[row][col] === "empty") {
 				return false;
 			}
 		}
@@ -593,15 +465,47 @@ game.checkForDraw = function(board) {
 	return true;
 }
 
+game.getScore = function(state) {
+	//console.log("game.getScore");
+	var score = 0;
+	var piecesLeft = 0;
+	var pieceDiff = 0;
+	var kings = 0;
+	var jumps = 0;
+	var player = state.playerTurn;
+	
+    if (state.status !== "running") {
+        if (state.result === "pOne wins") {
+            score = 100 - state.numOfMoves;
+        }
+        else if (state.result === "pTwo wins") {
+            score = -100 + state.numOfMoves;
+        }
+    }
+	else {
+		pieceDiff = state.pOnePiecesNum - state.pTwoPiecesNum;
+		kings = game.getNumOfKings(player,state);
+		console.log("pieceDiff: " + pieceDiff + ", kings: " + kings);
+		score = pieceDiff + (kings * 2);
+		if (player === "pTwo") {
+			score = score * -1;
+		}
+	}
+	console.log("score: " + score);
+    return score;
+}
+
 game.getMinimaxVal = function(state) {
-	if (state.isTerminal() || state.miniMaxDepth > game.ai.level) {
+	if (state.isEndState() || state.miniMaxDepth > game.ai.level) {
+		console.log("Depth limit reached, returning score");
+		game.printBoard(state.board);
 		return game.getScore(state);
 	}
 	
-	//console.log("board:");
-	//console.log(state.board);
-	//console.log("depth: " + state.miniMaxDepth);
-	//console.log("score: " + game.getScore(state));
+	console.log("getMinimaxVal");
+	console.log("depth: " + state.miniMaxDepth);
+	console.log(state);
+	game.printBoard(state.board);
 	
 	var stateScore;
 	
@@ -611,27 +515,46 @@ game.getMinimaxVal = function(state) {
 		stateScore = 1000;
 	}
 	
-	var availableMoves = state.availableMoves();
-	
-	var availableNextStates = availableMoves.map(function(move) {
+	var states = state.availableMoves.map(function(move) {
+        //console.log("move: ", move);
         
-        //create a new state in which we will add the new piece into
+        //create a copy of the state passed in in which we will add the new piece to
         var nextState = new State(state);
 		
 		//adding the new piece to the new state
 		nextState.board = squares.addPiece(move.newSquare,move.pieceId,nextState.board);
-		nextState.board = squares.removePiece(move.currentSquare,nextState.board);
-		nextState.numOfMoves++;
-		nextState.changeTurn();
-		nextState.miniMaxDepth++;
 		
+		//removing the piece from its previous square
+		nextState.board = squares.removePiece(move.currentSquare,nextState.board);
+		
+		if (move.jumpedSquare) {
+			if (Config.devmode) {
+				console.log("...and a piece was jumped")
+			}
+			
+			var jumpedPiece = nextState.board[move.jumpedSquare.row][move.jumpedSquare.col];
+			nextState.board = squares.removePiece(move.jumpedSquare,nextState.board);
+			nextState[game.getToggledPlayerTurn(nextState.player)+"PiecesNum"]--;
+			if (Config.devmode) {
+				console.log("Checking for more jumps...");
+			}
+			
+			nextState.setAvailableMoves(move.pieceId);
+			if (nextState.availableMoves.length === 0) {
+				nextState.changeTurn();
+			}
+		} else {
+			nextState.changeTurn();
+			nextState.setAvailableMoves();
+		}
+		nextState.numOfMoves++;
+		nextState.miniMaxDepth++;
 		return nextState;
 	});
 	
-	availableNextStates.forEach(function(nextState) {
+	states.forEach(function(state) {
+		var nextScore = game.getMinimaxVal(state); //recursive call
 		
-		var nextScore = game.getMinimaxVal(nextState); //recursive call
-
 		if (state.playerTurn === "pOne") {
 			if (nextScore > stateScore) {
 				stateScore = nextScore;
@@ -641,6 +564,7 @@ game.getMinimaxVal = function(state) {
 				stateScore = nextScore;
 			}
 		}
+		console.log("stateScore: " + stateScore);
 	});
 	return stateScore;
 }
@@ -673,24 +597,6 @@ game.deactivateContBtns = function() {
 	$('#rematch').off("click");
 }
 
-game.activateArrows = function() {
-	$('.arrow').click(function() {
-		var col = $(this).attr('id').match(/^arrow_(.*?)$/);
-		col = col[1];
-		$(document).trigger("playerMakesMove", col);
-	});
-	$('.square').click(function() {
-		var col = $(this).attr('id').match(/^s(.*?)_/);
-		col = col[1];
-		$(document).trigger("playerMakesMove", col);
-	});
-}
-
-game.deActivateArrows = function() {
-	$('.arrow').off("click");
-	$('.square').off("click");
-}
-
 game.updateWinnerBox = function(result) {
 	var text;
 	var nextBtn;
@@ -707,4 +613,14 @@ game.updateWinnerBox = function(result) {
 	}
 	gameView.addWinnerText(text,nextBtn);
 	//$('#mainWindow').prepend('<div class="winnerBox"><div class="pName">' + playerText + '</div>'+nextBtn+'</div>');
+}
+
+game.printBoard = function(board) {
+	for (var row = 0; row < Config.numRows;row++) {
+		var colString = '';
+    	for (var col = 0; col < Config.numCols;col++) {
+    		colString += board[row][col] + " | ";
+    	}
+    	console.log(colString);
+    }
 }

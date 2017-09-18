@@ -5,5 +5,5 @@ var Move = function(pieceId, currentSquare, newSquare, jumpedSquare, direction, 
 	this.jumpedSquare = jumpedSquare;
 	this.direction = direction;
 	this.player = player;
-	this.nextState;
+	this.state;
 }

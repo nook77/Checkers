@@ -8,74 +8,72 @@ var State = function(state) {
 		this.pOnePiecesNum = state.pOnePiecesNum;
 		this.pTwoPiecesNum = state.pTwoPiecesNum;
 		this.result = state.result;
-		this.jumpingPiece = state.jumpingPiece;
 		this.jumps = state.jumps;
 		this.miniMaxDepth = state.miniMaxDepth;
+		this.availableMoves = state.availableMoves;
+		this.kings = state.kings;
 	} else {
-		this.board = game.buildBoard();
+		var tmpBoard;
+		/*
+		var tmpBoard = [
+		["null", "pTwo1", "null", "pTwo2", "null", "pTwo3", "null", "pTwo4"],
+		["empty", "null", "pTwo6", "null", "pTwo7", "null", "pTwo8", "null"],
+		["null", "pTwo5", "null", "empty", "null", "empty", "null", "pTwo12"],
+		["pTwo10", "null", "pTwo9", "null", "empty", "null", "pTwo11", "null"],
+		["null", "empty", "null", "pOne11", "null", "empty", "null", "empty"],
+		["empty", "null", "pOne12", "null", "empty", "null", "pOne9", "null"],
+		["null", "pOne3", "null", "pOne2", "null", "pOne6", "null", "pOne5"],
+		["pOne4", "null", "empty", "null", "empty", "null", "pOne1", "null"]
+		];
+		*/ 
+		this.board = game.buildBoard(tmpBoard);
 		this.playerTurn = "pOne";
 		this.numOfMoves = 0;
 		this.status = "running";
 		this.pOnePiecesNum = Config.numPlayerPieces;
 		this.pTwoPiecesNum = Config.numPlayerPieces;
 		this.result = "";
-		this.jumpingPiece = "";
 		this.jumps = [];
 		this.miniMaxDepth = 1;
+		this.availableMoves = new Array();
+		this.kings = new Array();
 	}
 	
 	this.changeTurn = function() {
 		this.playerTurn = game.getToggledPlayerTurn(this.playerTurn);
 	}
-	/*
-	this.availableMoves = function() {
-		var moves = new Array();
-		for (i = 0;i<game.cols;i++) {
-			for (j = 0;j<game.rows;j++) {
-				if (this.board[i][j] === "empty") {
-					if (game.isValidMove(i,j,this.board)) {
-						moves.push({col: i,row: j});
-					}
-				}
-			}
-		}
-		return moves;
-	}
-	*/
-	this.availableMoves = function() {
+
+	this.setAvailableMoves = function(jumpingPieceId,currentSquare) {
 		var player = this.playerTurn;
 		var board = this.board;
-		
+		var nextSquare;
+		var dirs;
 		var pieceId;
 		var moves = [];
 		var jumps = [];
 		//console.log(playerPieces);
 		
-		if (this.jumpingPiece) {
-			var piece = game.pieces[this.jumpingPiece];
-			var currentSquare = piece.inSquare;
-			var col = piece.inSquare.col;
-			var row = piece.inSquare.row;
-			var nextSquare;
-			var dirs;
+		if (jumpingPieceId,currentSquare) {
+			var col = currentSquare.col;
+			var row = currentSquare.row;
 			
-			if (piece.isKing) {
-				dirs = game.kingDirections;
-			} else {
-				dirs = game.moveDirections[player];
+			dirs = game.moveDirections[this.playerTurn];
+    				
+			if (jQuery.inArray(pieceId, this.kings) !== -1) {
+				dirs = dirs = game.kingDirections;
 			}
 			
 			for (var i=0; i<dirs.length; i++) {
 				if (nextSquare = squares.getNextSquareInDirection(currentSquare, dirs[i])) {
-					if (board[nextSquare.col][nextSquare.row] !== "empty") {
-						var pieceInSquareId = board[nextSquare.col][nextSquare.row];
-						var pieceInSquare = game.pieces[pieceInSquareId];
-						if (pieceInSquare.player === game.getToggledPlayerTurn(player)) {
+					if (board[nextSquare.row][nextSquare.col] !== "empty") {
+						var pieceInSquareId = board[nextSquare.row][nextSquare.col];
+						var pieceInSquareId = board[nextSquare.row][nextSquare.col];
+						if (game.getPlayerFromPieceId(pieceInSquareId) === game.getToggledPlayerTurn(player)) {
 							if (game.isJumpable(nextSquare, dirs[i], player, board)) {
 								var jumpedSquare = nextSquare;
 								nextSquare = squares.getNextSquareInDirection(nextSquare, dirs[i]);
 								
-								var move = new Move(this.jumpingPiece, currentSquare, nextSquare, jumpedSquare, dirs[i], player);
+								var move = new Move(jumpingPiece, currentSquare, nextSquare, jumpedSquare, dirs[i], player);
 								jumps.push(move);
 							}
 						}
@@ -83,59 +81,55 @@ var State = function(state) {
 				}
 			}
 		} else {
-			for (pieceId in game.pieces) {
-				var piece = game.pieces[pieceId];
-				if (piece.player !== player) {
-					continue;
-				}
-				var currentSquare = piece.inSquare;
-				var col = piece.inSquare.col;
-				var row = piece.inSquare.row;
-				var nextSquare;
-				var dirs;
-			
-				if (piece.isKing) {
-					dirs = game.kingDirections;
-				} else {
-					dirs = game.moveDirections[player];
-				}
-				
-				for (var i=0; i<dirs.length; i++) {
-					if (nextSquare = squares.getNextSquareInDirection(currentSquare, dirs[i])) {
-						if (board[nextSquare.col][nextSquare.row] === "empty") {
-							var move = new Move(pieceId, currentSquare, nextSquare, '', dirs[i], player);
-							moves.push(move);
-						} else {
-							var pieceInSquareId = board[nextSquare.col][nextSquare.row];
-							var pieceInSquare = game.pieces[pieceInSquareId];
-							if (pieceInSquare.player === game.getToggledPlayerTurn(player)) {
-								if (game.isJumpable(nextSquare, dirs[i], player, board)) {
-									var jumpedSquare = nextSquare;
-									nextSquare = squares.getNextSquareInDirection(nextSquare, dirs[i]);
-									
-									var move = new Move(pieceId, currentSquare, nextSquare, jumpedSquare, dirs[i], player);
-									jumps.push(move);
-									this.jumpingPiece = pieceId;
+			for (var row = 0; row < Config.numRows;row++) {
+    			for (var col = 0; col < Config.numCols;col++) {
+    				var pieceId = board[row][col];
+    				if (game.getPlayerFromPieceId(pieceId) !== player) {
+    					continue;
+    				}
+    				
+    				var currentSquare = {row:row,col:col};
+    				dirs = game.moveDirections[this.playerTurn];
+    				
+    				if (jQuery.inArray(pieceId, this.kings) !== -1) {
+    					dirs = dirs = game.kingDirections;
+    				}
+    				
+    				for (var i=0; i<dirs.length; i++) {
+						if (nextSquare = squares.getNextSquareInDirection(currentSquare, dirs[i])) {
+							if (board[nextSquare.row][nextSquare.col] === "empty") {
+								var move = new Move(pieceId, currentSquare, nextSquare, '', dirs[i], player);
+								moves.push(move);
+							} else {
+								var pieceInSquareId = board[nextSquare.row][nextSquare.col];
+								if (game.getPlayerFromPieceId(pieceInSquareId) === game.getToggledPlayerTurn(player)) {
+									if (game.isJumpable(nextSquare, dirs[i], player, board)) {
+										var jumpedSquare = nextSquare;
+										nextSquare = squares.getNextSquareInDirection(nextSquare, dirs[i]);
+										
+										var move = new Move(pieceId, currentSquare, nextSquare, jumpedSquare, dirs[i], player);
+										jumps.push(move);
+									}
 								}
 							}
 						}
 					}
-				}
-			}
+    			}
+    		}
 		}
 		if (jumps.length > 0) {
 			if (Config.devmode) {
-				console.log("Jumps available!");
+				//console.log("Jumps available!");
 			}
-			game.state.jumps = true;
-			return jumps;
+			this.jumps = true;
+			this.availableMoves = jumps;
 		} else {
-			game.state.jumps = false;
-			return moves;
+			this.jumps = false;
+			this.availableMoves = moves;
 		}
 }
 	
-	this.isTerminal = function() {
+	this.isEndState = function() {
 		var winner = game.checkForWin(this.playerTurn);
 		if (winner) {
 			this.result = winner + " wins";

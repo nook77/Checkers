@@ -5,54 +5,81 @@ var AI = function(level) {
 }
 
 AI.chooseMove = function(turn,state) {
-	//var openSquares = game.state.availableMoves();
-	
-    var moves = state.availableMoves().map(function(move) {
-        
+	console.log("AI chooseMove");
+	game.printBoard(state.board);
+	var count = 1;
+    var states = state.availableMoves.map(function(move) {
+        console.log("AI move ", count, move);
         //create a new state in which we will add the new piece into
         var nextState = new State(state);
 		
 		//adding the new piece to the new state
 		nextState.board = squares.addPiece(move.newSquare,move.pieceId,nextState.board);
+		
+		//removing the piece from its previous square
 		nextState.board = squares.removePiece(move.currentSquare,nextState.board);
+		
+		if (move.jumpedSquare) {
+			if (Config.devmode) {
+				console.log("...and a piece was jumped")
+			}
+			
+			var jumpedPiece = nextState.board[move.jumpedSquare.row][move.jumpedSquare.col];
+			nextState.board = squares.removePiece(move.jumpedSquare,nextState.board);
+			nextState[game.getToggledPlayerTurn(nextState.player)+"PiecesNum"]--;
+			if (Config.devmode) {
+				console.log("Checking for more jumps...");
+			}
+			
+			nextState.setAvailableMoves(move.pieceId);
+			if (nextState.availableMoves.length === 0) {
+				nextState.changeTurn();
+			}
+		} else {
+			nextState.changeTurn();
+			nextState.setAvailableMoves();
+		}
 		nextState.numOfMoves++;
-		nextState.changeTurn();
+		//nextState.miniMaxDepth++;
+		
+		//sending the new state to get its minimax score
         move.minimaxVal = game.getMinimaxVal(nextState, this.level);
-		move.nextState = nextState;
+		move.state = nextState;
+		count++;
         return move;
     });
     
     var count = 0;
-    moves.forEach(function(move) {
-    	console.log(count + ": " + move.minimaxVal);
+    states.forEach(function(state) {
+    	console.log(count + ": " + state.minimaxVal);
     	count++;
     });
 
-    //sort the enumerated actions list by score
+    //sort the list of moves by score
 	if (turn === "pOne") {
-		moves.sort(AI.sortDescending);
+		states.sort(AI.sortDescending);
 	} else {
-		moves.sort(AI.sortAscending);
+		states.sort(AI.sortAscending);
 	}
 	
 	//check to see if there are moves with duplicate scores. If so, choose a random move from those
 	var sameScores = new Array;
-	sameScores.push(moves[0]);
-	for (var i=1; i<moves.length; i++) {
-		if (moves[i].minimaxVal === moves[0].minimaxVal) {
-			sameScores.push(moves[i]);
+	sameScores.push(states[0]);
+	for (var i=1; i<states.length; i++) {
+		if (states[i].minimaxVal === states[0].minimaxVal) {
+			sameScores.push(states[i]);
 		}
 	}
 	
 	var index = Math.floor(Math.random()*sameScores.length);
-	var chosenMove = moves[index];
+	var chosenMove = states[index];
 	
-	var pieceId = moves[index].pieceId;
-	var currentSquare = moves[index].currentSquare;
-	var newSquare = moves[index].newSquare;
+	//var pieceId = moves[index].pieceId;
+	//var currentSquare = moves[index].currentSquare;
+	//var newSquare = moves[index].newSquare;
 	
 	
-    var nextState = chosenMove.nextState;
+    var nextState = chosenMove.state;
     AI.movePiece(chosenMove);
 	//gameView.renderPiece(chosenMove.currentSquare, turn, nextState)
 	
@@ -92,9 +119,15 @@ AI.movePiece = function(move) {
 	}
 	
     $('#'+move.pieceId).css({"z-index": 1});
+    
     $('#'+move.pieceId).animate({"top":top+"px", "left":left+"px"}, 1000, function() {
+    	gameView.addPieceToSquare(move.pieceId,move.newSquare);
     	$(document).trigger("pieceDropped", [move.pieceId,move.newSquare]);
     });
+    
+    //$('#'+move.pieceId).css({"top":top+"px", "left":left+"px"});
+    //$(document).trigger("pieceDropped", [move.pieceId,move.newSquare]);
+
 }
 
 AI.sortAscending = function(a, b) {

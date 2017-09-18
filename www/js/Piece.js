@@ -4,5 +4,4 @@ var Piece = function(id, inSquare, player, dirs) {
 	this.player = player;
 	this.directions = dirs;
 	this.isKing = false;
-	this.isJumping = false;
 }
