@@ -2,7 +2,8 @@ var gameView = function() {
 }
 
 gameView.renderBoard = function() {
-	$("#board").css({width: Config.sqWidth*Config.numCols});
+	$("#board").css({width: Config.sqWidth*Config.numCols,
+					 height: Config.sqWidth*Config.numRows});
     for (var row = 0; row < Config.numRows;row++) {
     	for (var col = 0; col < Config.numCols;col++){
     		var color = "white";
@@ -23,7 +24,7 @@ gameView.renderBoard = function() {
 gameView.renderPiece = function(col, row, player, count) {
 	var squareId = 's' + row+'_'+col;
 	var pieceId = player + count;
-	$('#' + squareId).append('<div id="' + pieceId + '" class="piece ' + player + '"><span>' + pieceId + '</span></div>');
+	$('#' + squareId).append('<div id="' + pieceId + '" class="piece ' + player + '"><span>'+pieceId+'</span></div>');
 }
 
 gameView.selectPiece = function(pieceId) {
@@ -43,15 +44,33 @@ gameView.addPieceToSquare = function(pieceId, newSquare) {
 	$('#s' + newSquare.row + '_' + newSquare.col).append(piece);
 }
 
+gameView.removeAllPieces = function() {
+	$('.piece').remove();
+}
+
+gameView.showplayer = function(player) {
+	$('#'+player+'Box .player_name').addClass('border');
+}
+
+gameView.showChangeTurn = function() {
+	$('#pOneBox .player_name').toggleClass('border');
+	$('#pTwoBox .player_name').toggleClass('border');
+}
+
 gameView.removePiece = function(pieceId) {
 	$('#'+pieceId).remove();
+}
+
+gameView.addPieceToLostPieces = function(pieceId,player) {
+	var piece = $('#'+pieceId).detach();
+	$('#'+player+'Box .lost_pieces').append(piece);
 }
 
 gameView.addWinnerText = function(text,button) {
 	$('#winnerBox .pName').text(text);
 	if (button === "Continue") {
 		$('#winnerBox button').attr('id', "nextLevel");
-		$('#winnerBox button').text("Continue?");
+		$('#winnerBox button').text("Next Level?");
 	} else {
 		$('#winnerBox button').attr('id', "rematch");
 		$('#winnerBox button').text("Rematch?");
@@ -66,12 +85,19 @@ gameView.hideWinnerBox = function() {
 	$('#winnerBox').css("display", "none");
 } 
 
-gameView.addOpacity = function() {
-	$('#board').addClass('opaque');
+gameView.addOpacity = function(id) {
+	if (!id) {
+		id = board;
+	}
+	$('#'+id).addClass('opaque');
 }
 
-gameView.removeOpacity = function() {
-	$('#board').removeClass('opaque');
+gameView.removeOpacity = function(id) {
+	if (!id) {
+		id = board;
+	}
+	
+	$('#'+id).removeClass('opaque');
 }
 
 gameView.removeBoard = function() {

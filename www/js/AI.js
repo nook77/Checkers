@@ -1,23 +1,34 @@
 var AI = function(level) {
 	
-	//this.level = level;
-	this.level = 2;
+	this.level = level;
 }
 
-AI.chooseMove = function(turn,state) {
-	console.log("AI chooseMove");
+AI.chooseMove = function(state,moves) {
+	var player = state.player;
+	console.log("AI to chooseMove on this board:");
 	game.printBoard(state.board);
+	if (!moves) {
+		var moves = state.getAvailableMoves();
+	}
+	
 	var count = 1;
-    var states = state.availableMoves.map(function(move) {
-        console.log("AI move ", count, move);
+    var states = moves.map(function(move) {
+        console.log("AI makes move ", count, move);
         //create a new state in which we will add the new piece into
         var nextState = new State(state);
 		
 		//adding the new piece to the new state
-		nextState.board = squares.addPiece(move.newSquare,move.pieceId,nextState.board);
+		nextState.board = squares.addPiece(move.nextSquare,move.pieceId,nextState.board);
 		
 		//removing the piece from its previous square
 		nextState.board = squares.removePiece(move.currentSquare,nextState.board);
+		
+		//Check for Kinging
+		if ((player === "pOne" && move.nextSquare.row == 0) || (player === "pTwo" && move.nextSquare.row == Config.numRows - 1)) {
+			if (!game.isPieceKing(move.pieceId,nextState)) {
+				nextState.kings.push(move.pieceId);
+			}
+		} 
 		
 		if (move.jumpedSquare) {
 			if (Config.devmode) {
@@ -26,18 +37,22 @@ AI.chooseMove = function(turn,state) {
 			
 			var jumpedPiece = nextState.board[move.jumpedSquare.row][move.jumpedSquare.col];
 			nextState.board = squares.removePiece(move.jumpedSquare,nextState.board);
-			nextState[game.getToggledPlayerTurn(nextState.player)+"PiecesNum"]--;
+			nextState[game.getToggledplayer(nextState.player)+"PiecesNum"]--;
 			if (Config.devmode) {
 				console.log("Checking for more jumps...");
 			}
-			
-			nextState.setAvailableMoves(move.pieceId);
-			if (nextState.availableMoves.length === 0) {
+			nextState.setAvailableJumps(move.pieceId,move.nextSquare);
+			if (nextState.availableJumps.length === 0) {
+				console.log("changing turn");
 				nextState.changeTurn();
+				nextState.miniMaxDepth++;
 			}
 		} else {
+			console.log("changing turn");
 			nextState.changeTurn();
+			nextState.miniMaxDepth++;
 			nextState.setAvailableMoves();
+			nextState.setAvailableJumps();
 		}
 		nextState.numOfMoves++;
 		//nextState.miniMaxDepth++;
@@ -49,6 +64,8 @@ AI.chooseMove = function(turn,state) {
         return move;
     });
     
+    // just for printing out the scores to the console
+    console.log("moves list: ", moves);
     var count = 0;
     states.forEach(function(state) {
     	console.log(count + ": " + state.minimaxVal);
@@ -56,7 +73,7 @@ AI.chooseMove = function(turn,state) {
     });
 
     //sort the list of moves by score
-	if (turn === "pOne") {
+	if (player === "pOne") {
 		states.sort(AI.sortDescending);
 	} else {
 		states.sort(AI.sortAscending);
@@ -86,7 +103,7 @@ AI.chooseMove = function(turn,state) {
     // take the game to the next state
     //game.updateState(nextState);
     //game.pieces[move.pieceId].inSquare = move.newSquare;
-    //game.disablePlayersPieces(game.state.playerTurn);
+    //game.disablePlayersPieces(game.state.player);
     
     //game.activateArrows();
 }
@@ -98,19 +115,19 @@ AI.movePiece = function(move) {
 	var direction = move.direction;
 
 	if (direction.match(/n/)) {
-		top = top-75;
+		top = top-Config.sqWidth;
 	} 
 	
 	if (direction.match(/e/)) {
-		left = left+75;
+		left = left+Config.sqWidth;
 	} 
 	
 	if (direction.match(/s/)) {
-		top = top+75;
+		top = top+Config.sqWidth;
 	} 
 	
 	if (direction.match(/w/)) {
-		left = left - 75;
+		left = left - Config.sqWidth;
 	} 
 	
 	if (move.jumpedSquare) {
@@ -118,11 +135,12 @@ AI.movePiece = function(move) {
 		left = left*2;
 	}
 	
-    $('#'+move.pieceId).css({"z-index": 1});
+    $('#'+move.pieceId).css({"z-index": 101});
     
     $('#'+move.pieceId).animate({"top":top+"px", "left":left+"px"}, 1000, function() {
-    	gameView.addPieceToSquare(move.pieceId,move.newSquare);
-    	$(document).trigger("pieceDropped", [move.pieceId,move.newSquare]);
+    	gameView.addPieceToSquare(move.pieceId,move.nextSquare);
+    	$('#'+move.pieceId).css({"z-index": 1});
+    	$(document).trigger("pieceDropped", [move.pieceId,move.nextSquare]);
     });
     
     //$('#'+move.pieceId).css({"top":top+"px", "left":left+"px"});

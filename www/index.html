@@ -4,16 +4,16 @@
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>Checkers</title> 
-        <!--<link rel="stylesheet" href="../../assets/main.css">-->
+        <link rel="stylesheet" href="../../assets/main.css">
         <link rel="stylesheet" href="https://code.jquery.com/ui/1.9.2/themes/base/jquery-ui.css">
         <script type="text/javascript" src="js/lib/jquery-1.8.2.js"></script>
   		<script type="text/javascript" src="js/lib/jquery-ui-1.9.0.custom.min.js"></script>
+  		<script src="js/lib/jquery.ui.touch-punch.min.js"></script>
   		<script type="text/javascript" src="js/game.js"></script>
   		<script type="text/javascript" src="js/gameView.js"></script>
         <script type="text/javascript" src="js/config.js"></script>
         <script type="text/javascript" src="js/squares.js"></script>
         <script type="text/javascript" src="js/Board.js"></script>
-        <script type="text/javascript" src="js/Piece.js"></script>
         <script type="text/javascript" src="js/Move.js"></script>
         <script type="text/javascript" src="js/Square.js"></script>
         <script type="text/javascript" src="js/State.js"></script>
@@ -22,61 +22,92 @@
         <script type="text/javascript" src="js/startScreenView.js"></script>
         <link rel="stylesheet" href="css/checkers.css" type="text/css">
         <script>
+			if (document.documentElement.clientWidth < 450) {
+				document.write('<script type="text/javascript" src="js/config-small.js"/>');
+			} else if (document.documentElement.clientWidth < 1025 && document.documentElement.clientWidth > 450) {
+				document.write('<script type="text/javascript" src="js/config-large.js"/>');
+			}
+		</script>
+		</script>
+        <script>
         
 $(document).ready(function() {
+	//draw board on screen (with no pieces)
 	gameView.renderBoard();
-	game.init();
-	//gameView.addPieces();
-	//gameView.addOpacity();
-	//startScreenView.buildStartScreen();
-	//startScreenView.showStartScreen();
-	//startScreen.bindClicks(1);
+	
+	//add opacity to these two elements so they appear inactive
+	gameView.addOpacity('board');
+	gameView.addOpacity('player_boxes');
+	
+	//show main menu
+	startScreenView.showStartScreen();
+	
+	//activate buttons in main menu
+	startScreen.bindClicks();
 });
 
-$(document).on("playerMove",function(e,player) {
+$(document).on("playerMove",function(e,player,moves) {
 	if (Config.devmode) {
 		console.log("**************************************");
 		console.log("*                                    *");
 		console.log("**************************************");
 	}
 
-	//var availableMoves = game.state.availableMoves();
-	game.state.setAvailableMoves();
-	if (Config.devmode) {
-		console.log("playerMove: " + player);
-		console.log(game.state.availableMoves);
+	if (!moves) {
+		game.state.setAvailableMoves();
+		if (Config.devmode) {
+			console.log("playerMove: " + player);
+			console.log(game.state.availableMoves);
+		}
+		
+		game.state.setAvailableJumps();
+		if (Config.devmode) {
+			console.log(game.state.availableJumps);
+		}
+		var moves = game.state.getAvailableMoves();
 	}
 	
-	if (!game.state.availableMoves) {
-		game.state.result = player + " wins";
+	if (game.state.isEndState()) {
 		game.state.status = "ended";
-		game.state.winner = player;
-		game.state.status = "ended";
-		game.updateWinnerBox(game.state.result);
-		game.deactivateContBtns();
-		game.activateContBtns();
-		gameView.showWinnerBox();
-		game.disablePieces();
-	}
-	
-	if (player === "pOne") {
-		for (var i=0; i<game.state.availableMoves.length; i++) {
-			game.setSquareDroppable(game.state.availableMoves[i].newSquare);
-			game.setPieceDraggable(game.state.availableMoves[i].pieceId,game.state.availableMoves[i].newSquare);
+		if (game.state.result === "draw") {
+			$(document).trigger("winningSquaresShown");
+			$("#winnerBox").addClass("draw");
+		} else {
+			game.updateWinnerBox(game.state.result);
+			game.deactivateContBtns();
+			game.activateContBtns();
+			gameView.showWinnerBox();
+			game.disablePieces();
 		}
 	} else {
-		$(document).trigger("computerMove");
-	} 
+	
+		if (player === "pOne") {
+			
+			for (var i=0; i<moves.length; i++) {
+				game.setSquareDroppable(moves[i].nextSquare);
+				game.setPieceDraggable(moves[i].pieceId,moves[i].nextSquare);
+			}
+		} else {
+			$(document).trigger("computerMove",[moves]);
+		} 
+	}
 });
 
 $(document).on("pieceDropped",function(e,pieceId,newSquare,state) {
 
 	if (!state) {
-		state = game.state;
+		state = new State(game.state);
 	}
 	
-	var player = state.playerTurn;
-	//var oldSquare = game.pieces[pieceId].inSquare;
+	game.disablePieces();
+	//if (state.player === "pOne") {
+	if (state.availableJumps.length > 0) {
+		game.disableSquaresDroppable(state.availableJumps);
+	} else {
+		game.disableSquaresDroppable(state.availableMoves);
+	}
+	
+	var player = state.player;
 	var oldSquare = game.getSquareFromPieceId(pieceId,state.board);
 	if (Config.devmode) {
 		console.log("pieceDropped");
@@ -87,44 +118,32 @@ $(document).on("pieceDropped",function(e,pieceId,newSquare,state) {
 	var oldSquareId = squares.getSquareId(oldSquare);
 	var newSquareId = squares.getSquareId(newSquare);
 	
-	var newState = new State(state, game.ai.level);
+	var newState = new State(state);
 	newState.board = squares.addPiece(newSquare,pieceId,newState.board);
 	newState.board = squares.removePiece(oldSquare,newState.board);
-	//game.pieces[pieceId].inSquare = newSquare;
 	newState.numOfMoves++;
 	
-	//Check for King-ing
-	if (player === "pOne" && newSquare.row == 0) {
-		console.log("pOne King");
-		state.kings.push(pieceId);
-		//game.pieces[pieceId].isKing = true;
-		$('#'+pieceId).addClass("king");
-	} else if (player === "pTwo" && newSquare.row == Config.numRows - 1) {
-		console.log("pTwo King");
-		//game.pieces[pieceId].isKing = true;
-		state.kings.push(pieceId);
-		$('#'+pieceId).addClass("king");
-	}
-	
-	//removing the squareId classes from the player's pieces in the DOM
-	//if (player === "pOne") {
-		game.disablePieces();
-		//game.disableSquaresDroppable(state.availableMoves);
-	//}
-	
+	//Check for Kinging
+	if ((player === "pOne" && newSquare.row == 0) || (player === "pTwo" && newSquare.row == Config.numRows - 1)) {
+		if (!game.isPieceKing(pieceId,newState)) {
+			newState.kings.push(pieceId);
+			if (!$('#'+pieceId).hasClass("king")) {
+				$('#'+pieceId).addClass("king");
+			}
+		}
+	} 
 	if (Config.devmode) {
 		console.log("checking to see if a piece was jumped...");
 	}
 
-	if (state.jumps) {
+	if (state.availableJumps.length > 0) {
 		if (Config.devmode) {
 			console.log("...and a piece was jumped")
 		}
-		
 		//looping through the moves from the current game state to find the square that was jumped
-		for (var i=0;i<state.availableMoves.length;i++) {
-			if ((state.availableMoves[i].newSquare.row == newSquare.row && state.availableMoves[i].newSquare.col == newSquare.col) && state.availableMoves[i].pieceId === pieceId) {
-				var jumpedSquare = state.availableMoves[i].jumpedSquare;
+		for (var i=0;i<state.availableJumps.length;i++) {
+			if ((state.availableJumps[i].nextSquare.row == newSquare.row && state.availableJumps[i].nextSquare.col == newSquare.col) && state.availableJumps[i].pieceId === pieceId) {
+				var jumpedSquare = state.availableJumps[i].jumpedSquare;
 				if (Config.devmode) {
 					console.log("jumpedSquare ", jumpedSquare);
 				}
@@ -136,39 +155,30 @@ $(document).on("pieceDropped",function(e,pieceId,newSquare,state) {
 		}
 		var jumpedPiece = newState.board[jumpedSquare.row][jumpedSquare.col];
 		newState.board = squares.removePiece(jumpedSquare,newState.board);
-		gameView.removePiece(jumpedPiece);
-		//delete game.pieces[jumpedPiece];
-		newState[game.getToggledPlayerTurn(player)+"PiecesNum"]--;
+		gameView.addPieceToLostPieces(jumpedPiece,player);
+		newState[game.getToggledplayer(player)+"PiecesNum"]--;
 		if (Config.devmode) {
 			console.log("Checking for more jumps...");
 		}
 		
-		newState.setAvailableMoves(pieceId,newSquare);
-		if (newState.availableMoves.length > 0) {
+		newState.setAvailableJumps(pieceId,newSquare);
+		if (newState.availableJumps.length > 0) {
 			if (Config.devmode) {
-				console.log("availableMoves ", newState.availableMoves);
+				console.log("availableMoves ", newState.availableJumps);
 			}
-			//game.activateMovablePieces(newState.availableMoves);
 			game.updateState(newState);
-			$(document).trigger("playerMove", player);
+			$(document).trigger("playerMove", [player,newState.availableJumps]);
 		}
 		
 	}
 	
-	if (!newState.jumps) {
+	if (newState.availableJumps.length === 0) {
 		if (Config.devmode) {
 			console.log("no jumps remaining");
 		}
-		
+
 		//update State
 		game.updateState(newState);
-//		game.pieces[pieceId].inSquare = newSquare;
-		
-		if (Config.devmode) {
-			console.log("updated state");
-			console.log(game.state.board);
-			//console.log(game.pieces);
-		}
 		
 		if (game.state.isEndState()) {
 			game.state.status = "ended";
@@ -183,26 +193,19 @@ $(document).on("pieceDropped",function(e,pieceId,newSquare,state) {
 				game.disablePieces();
 			}
 		} else {
-		
-			game.disablePieces();
-			//if (state.playerTurn === "pOne") {
-				game.disableSquaresDroppable(state.availableMoves);
-			//}
+			
+			//disable dragging of player's pieces			$('.'+game.getToggledplayer(this.player)).draggable({disabled:true});
 			game.state.changeTurn();
-			
-			
-			
-			//allowing dragging of current player's pieces
-			$('.'+game.state.playerTurn).draggable({disabled:false, revert: true, revertDuration: 10, zIndex:100});
-				
-			//disable dragging of opponent's pieces
-			$('.'+game.getToggledPlayerTurn(game.state.playerTurn)).draggable({disabled:true});
-			
+			gameView.showChangeTurn();
 			//disabling dropping on squares
 			$( ".square" ).droppable({
 			  disabled: true
 			});
-			$(document).trigger("playerMove", game.state.playerTurn);
+			setTimeout(function(){ 		
+				//$(document).trigger("pieceDropped", [pieceId, square, game.state]);
+				$(document).trigger("playerMove", game.state.player);
+			},50); 
+			//$(document).trigger("playerMove", game.state.player);
 		}
 	}
 });
@@ -213,81 +216,9 @@ $(document).on("computerPieceDropped",function(e,pieceId,newSquare) {
 	console.log("newSquare: ", newSquare);
 	
 });
-/*
-$(document).on("pieceSelected",function(e,pieceId){
-	console.log(pieceId);
-	$('#'+pieceId).addClass("selected");
-});
 
-$(document).on("moveComplete",function(e,player) {
-	game.state.jumps = game.findJumps(player,game.state.board);
-});
-
-$(document).on("pieceDropped", function(e, col, state){
-	//$(document).trigger("checkForWin");
-	if (state.isEndState()) {
-		game.state.status = "ended";
-		if (game.state.result === "draw") {
-			$(document).trigger("winningSquaresShown");
-			$("#winnerBox").addClass("draw");
-		} else {
-			var winningSquares = game.getWinningSquares(game.state);
-			game.showWinningSquares(winningSquares);
-		}
-	} else {
-		if (game.players === "one" && state.playerTurn === "pTwo") {
-			$(document).trigger("computerPlayerMove");
-		} 
-	} 
-
-});
-
-$(document).on("winningSquaresShown", function() {
-	game.updateWinnerBox(game.state.result);
-	game.deactivateContBtns();
-	game.activateContBtns();
-	gameView.showWinnerBox();
-	game.disableAllColumns();
-});
-
-$(document).on("checkForWin", function() {
-	var winner;
-	if (winner = game.checkForWin(game.board)) {
-		console.log("Winner!");
-		game.disableAllColumns();
-		gameView.showWinner(winner);
-		
-	} 
-});
-
-$(document).on("computerPlayerMove", function() {
-	console.log("computermove");
-	if (game.ai.level === 0) {
-		console.log("random move");
-		$(document).trigger("computerMoveRandom");
-	} else {
-		$(document).trigger("computerMove");
-	}
-});
-
-$(document).on("computerMoveRandom", function() {
-	var COLUMNS = game.cols;
-	var col = Math.floor(Math.random()*COLUMNS);
-	
-	while ($.inArray(col, game.state.disabledColumns) > -1 ) {
-		col = Math.floor(Math.random()*COLUMNS);
-	}
-	//$(document).trigger("dropPiece", col);
-	//var chosenAction = availableMoves[0];
-    //var nextState = chosenAction.applyMoveTo(game.state);
-	gameView.renderPiece(chosenAction.movePos, turn, nextState)
-
-    // take the game to the next state
-    game.updateState(nextState);
-});
-*/
-$(document).on("computerMove", function() {
-	AI.chooseMove(game.state.playerTurn,game.state);
+$(document).on("computerMove", function(e,moves) {
+	AI.chooseMove(game.state,moves);
 });
 </script>
 
@@ -295,20 +226,23 @@ $(document).on("computerMove", function() {
     <body>
 <div id="header-place"></div>
     	<script>
-    	/*
+    	
 $(function(){
   $("#header-place").load("/assets/nav.html");
 });
-*/
+
 </script>
     	<div id="mainWindow">
-			<p class="description">This is a JavaScript version of Checkers that utilizes an AI based upon the MiniMax algorithm. As the levels increase, the AI is able to look more and more moves ahead.</p>
+			<p class="description">Drag a piece to move. Available jumps MUST be taken!</p>
 			<div id="game_wrapper">
 				<div id="start_screen" class="popUpBox">
-					<div class="start">
-						<p class="level"></p>
-						<button id="startGame">GO!</button>
+					<div class="cancel">X</div>
+					<div class="levels">
+						<div id="easy" class="button opaque">Easy</div>
+						<div id="med" class="button">Medium</div>
+						<div id="hard" class="button">Hard</div>
 					</div>
+					<button id="startGame">GO!</button>
 				</div>
 				<div id="winnerBox" class="popUpBox">
 					<div class="winner">
@@ -316,7 +250,22 @@ $(function(){
 						<button></button>
 					</div>
 				</div>
-				<div id="board">
+				<div id="board"></div>
+				<div id="player_boxes">
+					<div id="pOneBox" class="box">
+						<div class="player_name">Player 1</div>
+						<div class="inner">
+							<div class="lost_pieces"></div>
+						</div>
+					</div>
+					<div id="pTwoBox" class="box">
+						<div class="player_name">Player 2</div>
+						<div class="inner">
+							<div class="lost_pieces"></div>
+						</div>
+					</div>
+					<div id="main_menu" class="button">Main Menu</div>
+					<div id="reset" class="button">Reset Game</div>
 				</div>
     		</div>
     	</div>

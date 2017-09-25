@@ -32,7 +32,8 @@ squares.getSquareId = function(square) {
 	return 's'+square.row+'_'+square.col;
 }
 
-squares.getNextSquareInDirection = function(coords, direction) {
+
+squares.getNextSquareInDirection = function(coords, direction, jumpable) {
 	var col = coords.col;
 	var row = coords.row;
 	
@@ -50,7 +51,12 @@ squares.getNextSquareInDirection = function(coords, direction) {
 	
 	if (direction.match(/w/)) {
 		col--;
-	} 
+	}
+	
+	if (jumpable) {
+		row = row * 2;
+		col = col * 2;
+	}
 	
 	if (col >= 0 && col < game.cols && row >= 0 && row < game.rows) {
 		return {row:row,col:col};

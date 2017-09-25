@@ -1,7 +1,7 @@
-var Move = function(pieceId, currentSquare, newSquare, jumpedSquare, direction, player) {
+var Move = function(pieceId, currentSquare, nextSquare, jumpedSquare, direction, player) {
 	this.pieceId = pieceId;
 	this.currentSquare = currentSquare;
-	this.newSquare = newSquare;
+	this.nextSquare = nextSquare;
 	this.jumpedSquare = jumpedSquare;
 	this.direction = direction;
 	this.player = player;
