@@ -25,7 +25,7 @@ var game = {
 		gameView.removeOpacity('board');
 		gameView.removeOpacity('player_boxes');
 		game.addPieces(game.state.board);
-		startScreenView.hideStartScreen();
+		startScreenView.hideMainMenu();
 		
 		$('#reset').on("click",function(){
 			game.resetGame(level);
@@ -38,8 +38,8 @@ var game = {
 			gameView.addOpacity('board');
 			gameView.addOpacity('player_boxes');
 			$('.cancel').css({"display":"block"});
-			startScreen.bindClicks();
-			startScreenView.showStartScreen();
+			startScreen.bindMenuClicks();
+			startScreenView.showMainMenu();
 		});
 		
 		gameView.showplayer(game.state.player);
@@ -664,7 +664,7 @@ game.resetGame = function() {
 	gameView.renderBoard();
 	gameView.hideWinnerBox();
 	startScreen.unBindClicks();
-	startScreen.bindClicks();
+	startScreen.bindMenuClicks();
 }
 
 game.activateContBtns = function() {

@@ -1,7 +1,15 @@
 var startScreen = function() {
 }
 
-startScreen.bindClicks = function() {
+startScreen.bindOkClick = function() {
+	$('#okButton').on("click", function(event) {
+		startScreenView.hideStartScreen();
+		startScreenView.showMainMenu();
+		startScreen.bindMenuClicks();
+	});	
+}
+
+startScreen.bindMenuClicks = function() {
 	$('#startGame').on("click", function(event) {
 		game.resetGame();
 		game.init(1);

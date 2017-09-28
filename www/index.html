@@ -39,11 +39,15 @@ $(document).ready(function() {
 	gameView.addOpacity('board');
 	gameView.addOpacity('player_boxes');
 	
-	//show main menu
+	//show start screen
 	startScreenView.showStartScreen();
+	startScreen.bindOkClick();
+	
+	//show main menu
+	//startScreenView.showStartScreen();
 	
 	//activate buttons in main menu
-	startScreen.bindClicks();
+	//startScreen.bindClicks();
 });
 
 $(document).on("playerMove",function(e,player,moves) {
@@ -233,9 +237,12 @@ $(function(){
 
 </script>
     	<div id="mainWindow">
-			<p class="description">Drag a piece to move. Available jumps MUST be taken!</p>
 			<div id="game_wrapper">
 				<div id="start_screen" class="popUpBox">
+					<p>Drag a piece to move. Available jumps MUST be taken! You will only be allowed to move pieces with valid moves.</p>
+					<input type="button" id="okButton" value="OK!"/>
+				</div>
+				<div id="start_menu" class="popUpBox">
 					<div class="cancel">X</div>
 					<div class="levels">
 						<div id="easy" class="button opaque">Easy</div>
